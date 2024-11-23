@@ -1,0 +1,436 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+variables:
+  - group: terraform-vars-cross-platform-standard
+  - name: TerraformTemplatePath
+    value: "$(System.DefaultWorkingDirectory)/azure-commercial/vmap"
+  - name: TerraformInitArguments
+    value: 'terraform init -no-color'
+  - name: TerraformPlanArguments
+    value: 'terraform plan -input=false -var-file="$(var_filename)" -var="client_secret=$(client_secret)" -out $(TerraformPlanPath) -no-color'
+  - name: TerraformPlanFileName
+    value: plan_$(Stage)_$(Build.DefinitionName)_$(Build.BuildNumber).tfplan
+  - name: DownloadTerraformPlan
+    value: "az storage blob download --account-name $(TerraformStateStorageAccount) --account-key $(TerraformStateStorageAccountKey) --container-name $(TerraformPlanContainerName) -n $(TerraformPlanFileName) -f $(TerraformPlanFileName) --auth-mode key"
+  - name: TerraformApplyArguments
+    value: "terraform apply -input=false $(TerraformPlanFileName) -no-color"
+  - name: TerraformEnvironment
+    value: public
+  - name: Project
+    value: iac-acc-vmap
+
+name: $(Build.DefinitionName)_$(Build.SourceBranchName).$(rev:r)
+
+# specific path build
+trigger:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - azure-commercial/vmap/*
+      - modules/*
+      - modules12/*
+
+pool:
+  name: DevelopmentPrivatePoolWin2016
+
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildSolution
+        steps:
+          - template: ${{variables['System.DefaultWorkingDirectory']}}/yaml-templates/Step/standard-dm-infra-build.yml
+            parameters:
+              terraform_project_folder_name: "vmap"
+              service_connection: "dev-core"
+              development_variables_file: "variables_development.tfvars"
+              terraform_command: "terraform"
+
+  - stage: ValidationDevelopment
+    dependsOn: Build
+    displayName: Validation Development
+    variables:
+      - group: terraform-vars-dev-spoke-application-57fad7dc-kvl
+      - group: terraform-vars-dev-spoke-application-57fad7dc
+    jobs:
+      - job:
+        displayName: Validation Development
+        pool:
+          name: DevelopmentPrivatePoolWin2016
+        steps:
+          - task: AzureCLI@2
+            displayName: "Download Dev Certificates"
+            inputs:
+              azureSubscription: "dev-spoke-application"
+              scriptType: ps
+              scriptLocation: inlineScript
+              inlineScript: |
+                az keyvault certificate download -f kpmgcloudops.com.cer -n kpmgcloudops-com-cer2 --vault-name $(KeyVaultName) -e PEM
+                az keyvault secret download -f vmapdev.kpmgcloudops.com.pfx -n vmapdev-kpmgcloudops-com-pfx --vault-name $(KeyVaultName) --e base64
+              workingDirectory: "$(TerraformTemplatePath)"
+              failOnStandardError: true
+          - task: qetza.replacetokens.replacetokens-task.replacetokens@3
+            displayName: "Replace tokens in **/*.tf **/*.var **/*.vars **/*.tfvars **/*.txt **/*.sh **/*.gcfg"
+            inputs:
+              rootDirectory: "$(TerraformTemplatePath)"
+              targetFiles: |
+                **/*.tf
+                **/*.var
+                **/*.vars
+                **/*.tfvars
+                **/*.txt
+                **/*.sh
+                **/*.gcfg
+              tokenPrefix: "__"
+              tokenSuffix: "__"
+          - task: AzureCLI@1
+            displayName: "Terraform Init"
+            inputs:
+              azureSubscription: "dev-spoke-application"
+              scriptLocation: inlineScript
+              inlineScript: "$(TerraformInitArguments)"
+              workingDirectory: "$(TerraformTemplatePath)"
+          - task: AzureCLI@1
+            displayName: "Terraform Plan"
+            inputs:
+              azureSubscription: "dev-spoke-application"
+              scriptLocation: inlineScript
+              inlineScript: "$(TerraformPlanArguments)"
+              workingDirectory: "$(TerraformTemplatePath)"
+          - task: AzureFileCopy@3
+            displayName: "Terraform Plan Copy to Storage Account"
+            inputs:
+              SourcePath: "$(TerraformPlanPath)"
+              azureSubscription: "dev-spoke-application"
+              Destination: AzureBlob
+              storage: "$(TerraformStateStorageAccount)"
+              ContainerName: terraformplancontainer
+  - stage: Development
+    displayName: Development
+    dependsOn: ValidationDevelopment
+    variables:
+      - group: terraform-vars-dev-spoke-application-57fad7dc-kvl
+      - group: terraform-vars-dev-spoke-application-57fad7dc
+    jobs:
+      - deployment:
+        timeoutInMinutes: 300
+        displayName: Development
+        pool:
+          name: DevelopmentPrivatePoolWin2016
+        environment: 'Development'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+              - powershell: |
+                  if ($env:SYSTEM_STAGEDISPLAYNAME -like "*Development*")
+                  {
+                    write-output "Deployment is to Development, therefore deployment does not have to be from master branch."
+                  }
+                  elseif ($env:BUILD_SOURCEBRANCHNAME -ne "master")
+                  {
+                    write-output "##vso[task.LogIssue type=error;]Deployment to $env:SYSTEM_STAGEDISPLAYNAME must only be from the master branch."
+                    exit 1
+                  }
+                  else
+                  {
+                    write-output "Deployment is from master."
+                  }
+                displayName: 'Check Deployment Is From The Master Branch'
+              - task: qetza.replacetokens.replacetokens-task.replacetokens@3
+                displayName: 'Replace tokens in **/*.tf **/*.var **/*.vars **/*.tfvars **/*.txt **/*.sh **/*.gcfg'
+                inputs:
+                  rootDirectory: '$(TerraformTemplatePath)'
+                  targetFiles: |
+                    **/*.tf
+                    **/*.var
+                    **/*.vars
+                    **/*.tfvars
+                    **/*.txt
+                    **/*.sh
+                    **/*.gcfg
+                  keepToken: true
+                  tokenPrefix: '__'
+                  tokenSuffix: '__'
+              - task: AzureCLI@1
+                displayName: 'Terraform Init'
+                inputs:
+                  azureSubscription: 'dev-spoke-application'
+                  scriptLocation: inlineScript
+                  inlineScript: '$(TerraformInitArguments)'
+                  workingDirectory: '$(TerraformTemplatePath)'
+              - task: AzureCLI@1
+                displayName: 'Download Terraform Plan to Agent'
+                inputs:
+                  azureSubscription: 'dev-spoke-application'
+                  scriptLocation: inlineScript
+                  inlineScript: '$(DownloadTerraformPlan)'
+                  workingDirectory: '$(TerraformTemplatePath)'
+              - task: AzureCLI@1
+                displayName: 'Terraform Apply'
+                inputs:
+                  azureSubscription: 'dev-spoke-application'
+                  scriptLocation: inlineScript
+                  inlineScript: '$(TerraformApplyArguments)'
+                  workingDirectory: '$(TerraformTemplatePath)'
+
+  - stage: ValidationUAT
+    dependsOn: Build
+    displayName: Validation UAT
+    variables:
+      - group: terraform-vars-uat-spoke-application-104a6d25-kvl
+      - group: terraform-vars-uat-spoke-application-104a6d25
+    jobs:
+      - job:
+        displayName: Validation UAT
+        pool:
+          name: UATPrivatePoolWin2016
+        steps:
+          - task: AzureCLI@2
+            displayName: "Download UAT Certificates"
+            inputs:
+              azureSubscription: "uat-spoke-application"
+              scriptType: ps
+              scriptLocation: inlineScript
+              inlineScript: |
+                az keyvault certificate download -f kpmgcloudops.com.cer -n kpmgcloudops-com --vault-name $(KeyVaultName) -e PEM
+                az keyvault secret download -f vmapuat.kpmgcloudops.com.pfx -n vmapuat-kpmgcloudops-com-pfx --vault-name $(KeyVaultName) --e base64
+              workingDirectory: "$(TerraformTemplatePath)"
+              failOnStandardError: true
+          - task: qetza.replacetokens.replacetokens-task.replacetokens@3
+            displayName: "Replace tokens in **/*.tf **/*.var **/*.vars **/*.tfvars **/*.txt **/*.sh **/*.gcfg"
+            inputs:
+              rootDirectory: "$(TerraformTemplatePath)"
+              targetFiles: |
+                **/*.tf
+                **/*.var
+                **/*.vars
+                **/*.tfvars
+                **/*.txt
+                **/*.sh
+                **/*.gcfg
+              tokenPrefix: "__"
+              tokenSuffix: "__"
+          - task: AzureCLI@1
+            displayName: "Terraform Init"
+            inputs:
+              azureSubscription: "uat-spoke-application"
+              scriptLocation: inlineScript
+              inlineScript: "$(TerraformInitArguments)"
+              workingDirectory: "$(TerraformTemplatePath)"
+          - task: AzureCLI@1
+            displayName: "Terraform Plan"
+            inputs:
+              azureSubscription: "uat-spoke-application"
+              scriptLocation: inlineScript
+              inlineScript: "$(TerraformPlanArguments)"
+              workingDirectory: "$(TerraformTemplatePath)"
+          - task: AzureFileCopy@3
+            displayName: "Terraform Plan Copy to Storage Account"
+            inputs:
+              SourcePath: "$(TerraformPlanPath)"
+              azureSubscription: "uat-spoke-application"
+              Destination: AzureBlob
+              storage: "$(TerraformStateStorageAccount)"
+              ContainerName: terraformplancontainer
+  - stage: UAT
+    displayName: UAT
+    dependsOn: ValidationUAT
+    variables:
+      - group: terraform-vars-uat-spoke-application-104a6d25-kvl
+      - group: terraform-vars-uat-spoke-application-104a6d25
+    jobs:
+      - deployment:
+        timeoutInMinutes: 300 
+        displayName: UAT
+        pool:
+          name: UATPrivatePoolWin2016
+        environment: 'UAT'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+              - powershell: |
+                  if ($env:SYSTEM_STAGEDISPLAYNAME -like "*Development*")
+                  {
+                    write-output "Deployment is to Development, therefore deployment does not have to be from master branch."
+                  }
+                  elseif ($env:BUILD_SOURCEBRANCHNAME -ne "master")
+                  {
+                    write-output "##vso[task.LogIssue type=error;]Deployment to $env:SYSTEM_STAGEDISPLAYNAME must only be from the master branch."
+                    exit 1
+                  }
+                  else
+                  {
+                    write-output "Deployment is from master."
+                  }
+                displayName: 'Check Deployment Is From The Master Branch'
+              - task: qetza.replacetokens.replacetokens-task.replacetokens@3
+                displayName: 'Replace tokens in **/*.tf **/*.var **/*.vars **/*.tfvars **/*.txt **/*.sh **/*.gcfg'
+                inputs:
+                  rootDirectory: '$(TerraformTemplatePath)'
+                  targetFiles: |
+                    **/*.tf
+                    **/*.var
+                    **/*.vars
+                    **/*.tfvars
+                    **/*.txt
+                    **/*.sh
+                    **/*.gcfg
+                  keepToken: true
+                  tokenPrefix: '__'
+                  tokenSuffix: '__'
+              - task: AzureCLI@1
+                displayName: 'Terraform Init'
+                inputs:
+                  azureSubscription: 'uat-spoke-application'
+                  scriptLocation: inlineScript
+                  inlineScript: '$(TerraformInitArguments)'
+                  workingDirectory: '$(TerraformTemplatePath)'
+              - task: AzureCLI@1
+                displayName: 'Download Terraform Plan to Agent'
+                inputs:
+                  azureSubscription: 'uat-spoke-application'
+                  scriptLocation: inlineScript
+                  inlineScript: '$(DownloadTerraformPlan)'
+                  workingDirectory: '$(TerraformTemplatePath)'
+              - task: AzureCLI@1
+                displayName: 'Terraform Apply'
+                inputs:
+                  azureSubscription: 'uat-spoke-application'
+                  scriptLocation: inlineScript
+                  inlineScript: '$(TerraformApplyArguments)'
+                  workingDirectory: '$(TerraformTemplatePath)'
+
+  - stage: ValidationProd
+    dependsOn: Build
+    displayName: Validation Prod
+    variables:
+      - group: terraform-vars-pd-spoke-application-5d3ae075-kvl
+      - group: terraform-vars-pd-spoke-application-5d3ae075
+    jobs:
+      - job:
+        displayName: Validation Prod
+        pool:
+          name: ProdPrivatePoolWIN2016
+        steps:
+#          - task: AzureCLI@2
+#           displayName: "Download Prod Certificates"
+#            inputs:
+#              azureSubscription: "pd-spoke-application"
+#              scriptType: ps
+#              scriptLocation: inlineScript
+#              inlineScript: |
+#                az keyvault certificate download -f kpmgcloudops.com.cer -n kpmgcloudops-com --vault-name $(KeyVaultName) -e PEM
+#                az keyvault secret download -f vmap.kpmgcloudops.com.pfx -n vmap-kpmgcloudops-com-pfx --vault-name $(KeyVaultName) --e base64
+#              workingDirectory: "$(TerraformTemplatePath)"
+#              failOnStandardError: true
+          - task: qetza.replacetokens.replacetokens-task.replacetokens@3
+            displayName: "Replace tokens in **/*.tf **/*.var **/*.vars **/*.tfvars **/*.txt **/*.sh **/*.gcfg"
+            inputs:
+              rootDirectory: "$(TerraformTemplatePath)"
+              targetFiles: |
+                **/*.tf
+                **/*.var
+                **/*.vars
+                **/*.tfvars
+                **/*.txt
+                **/*.sh
+                **/*.gcfg
+              tokenPrefix: "__"
+              tokenSuffix: "__"
+          - task: AzureCLI@1
+            displayName: "Terraform Init"
+            inputs:
+              azureSubscription: "pd-spoke-application"
+              scriptLocation: inlineScript
+              inlineScript: "$(TerraformInitArguments)"
+              workingDirectory: "$(TerraformTemplatePath)"
+          - task: AzureCLI@1
+            displayName: "Terraform Plan"
+            inputs:
+              azureSubscription: "pd-spoke-application"
+              scriptLocation: inlineScript
+              inlineScript: "$(TerraformPlanArguments)"
+              workingDirectory: "$(TerraformTemplatePath)"
+          - task: AzureFileCopy@3
+            displayName: "Terraform Plan Copy to Storage Account"
+            inputs:
+              SourcePath: "$(TerraformPlanPath)"
+              azureSubscription: "pd-spoke-application"
+              Destination: AzureBlob
+              storage: "$(TerraformStateStorageAccount)"
+              ContainerName: terraformplancontainer
+  - stage: Production
+    displayName: Production
+    dependsOn: ValidationProd
+    variables:
+      - group: terraform-vars-pd-spoke-application-5d3ae075-kvl
+      - group: terraform-vars-pd-spoke-application-5d3ae075
+    jobs:
+      - deployment:
+        timeoutInMinutes: 300 
+        displayName: Production
+        pool:
+          name: ProdPrivatePoolWIN2016
+        environment: 'Production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+              - powershell: |
+                  if ($env:SYSTEM_STAGEDISPLAYNAME -like "*Development*")
+                  {
+                    write-output "Deployment is to Development, therefore deployment does not have to be from master branch."
+                  }
+                  elseif ($env:BUILD_SOURCEBRANCHNAME -ne "master")
+                  {
+                    write-output "##vso[task.LogIssue type=error;]Deployment to $env:SYSTEM_STAGEDISPLAYNAME must only be from the master branch."
+                    exit 1
+                  }
+                  else
+                  {
+                    write-output "Deployment is from master."
+                  }
+                displayName: 'Check Deployment Is From The Master Branch'
+              - task: qetza.replacetokens.replacetokens-task.replacetokens@3
+                displayName: 'Replace tokens in **/*.tf **/*.var **/*.vars **/*.tfvars **/*.txt **/*.sh **/*.gcfg'
+                inputs:
+                  rootDirectory: '$(TerraformTemplatePath)'
+                  targetFiles: |
+                    **/*.tf
+                    **/*.var
+                    **/*.vars
+                    **/*.tfvars
+                    **/*.txt
+                    **/*.sh
+                    **/*.gcfg
+                  keepToken: true
+                  tokenPrefix: '__'
+                  tokenSuffix: '__'
+              - task: AzureCLI@1
+                displayName: 'Terraform Init'
+                inputs:
+                  azureSubscription: 'pd-spoke-application'
+                  scriptLocation: inlineScript
+                  inlineScript: '$(TerraformInitArguments)' 
+                  workingDirectory: '$(TerraformTemplatePath)'
+              - task: AzureCLI@1
+                displayName: 'Download Terraform Plan to Agent'
+                inputs:
+                  azureSubscription: 'pd-spoke-application'
+                  scriptLocation: inlineScript
+                  inlineScript: '$(DownloadTerraformPlan)'
+                  workingDirectory: '$(TerraformTemplatePath)'
+              - task: AzureCLI@1
+                displayName: 'Terraform Apply'
+                inputs:
+                  azureSubscription: 'pd-spoke-application'
+                  scriptLocation: inlineScript
+                  inlineScript: '$(TerraformApplyArguments)'
+                  workingDirectory: '$(TerraformTemplatePath)'
+

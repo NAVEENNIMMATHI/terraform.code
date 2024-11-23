@@ -1,0 +1,7 @@
+variables:
+- name: Keyvault_Name 
+  value: kvl-use-sharedras-uat
+- name: Stage
+  value: uat
+- name: Variables_passed_to_plan
+  value: -var="ignite_postgresql_adminpassword=$(ignite-postgresql-adminpassword)" -target="azurerm_cognitive_account.ignite-cognitive-account" -var="client_secret=$(spn-devops-104a6d25-ignite)" -var-file="variables_scaling_uat.tfvars"

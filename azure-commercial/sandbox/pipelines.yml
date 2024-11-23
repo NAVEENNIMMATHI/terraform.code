@@ -1,0 +1,83 @@
+name: $(Build.DefinitionName)_$(Build.SourceBranchName).$(rev:r)
+
+trigger:
+- master
+
+pool:
+  name: DevelopmentPrivatePoolWin2016
+
+variables:
+  subscribe: 'false'
+  tags: | 
+    {}
+  eventgrid-event-subscription-governance-scope: 'placeholder'
+  webhook-endpoint-url:  'https://localhost/placeholder'
+  storage_account_allowed_subnet_ids: | 
+    [""]
+  key_vault_allowed_subnet_ids: | 
+    [""]
+  solution_name: 'placeholder'
+  solution_abbreviation: 'placeholder'
+  environment: 'placeholder'
+
+steps:
+
+- task: qetza.replacetokens.replacetokens-task.replacetokens@3
+  displayName: 'Replace pipeline variables (subscription-baseline)'
+  inputs:
+    targetFiles: '**/subscription-baseline/pipeline.tokenized.tfvars => pipeline.tfvars'
+    tokenPrefix: '__'
+    tokenSuffix: '__'
+  
+- task: qetza.replacetokens.replacetokens-task.replacetokens@3
+  displayName: 'Replace pipeline variables (sandbox)'
+  inputs:
+    targetFiles: '**/subscription-baseline/pipeline.tokenized.tfvars => pipeline.tfvars'
+    tokenPrefix: '__'
+    tokenSuffix: '__'
+
+- task: petergroenewegen.PeterGroenewegen-Xpirit-Vsts-Release-Terraform.Xpirit-Vsts-Release-Terraform.Terraform@2
+  displayName: 'Terraform init (subscription-baseline)'
+  inputs:
+    TemplatePath: subscription-baseline
+    Arguments: init -backend=false
+  
+- task: petergroenewegen.PeterGroenewegen-Xpirit-Vsts-Release-Terraform.Xpirit-Vsts-Release-Terraform.Terraform@2
+  displayName: 'Terraform init (sandbox)'
+  inputs:
+    TemplatePath: sandbox
+    Arguments: init -backend=false
+
+- task: petergroenewegen.PeterGroenewegen-Xpirit-Vsts-Release-Terraform.Xpirit-Vsts-Release-Terraform.Terraform@2
+  displayName: 'Terraform validate (subscription-baseline)'
+  inputs:
+    TemplatePath: subscription-baseline
+    Arguments: validate -var-file="pipeline.tfvars"
+
+# skipping validate for sandbox
+
+- task: CopyFiles@2
+  displayName: 'Copy shared module configurations'
+  inputs:
+    SourceFolder: modules
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/modules'
+
+- task: CopyFiles@2
+  displayName: 'Copy subscription-baseline configuration'
+  inputs:
+    SourceFolder: subscription-baseline
+    Contents: '*'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/azure-commercial/subscription-baseline'
+
+- task: CopyFiles@2
+  displayName: 'Copy Sandbox configuration'
+  inputs:
+    SourceFolder: Sandbox
+    Contents: '*'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/azure-commercial/sandbox'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish artifacts'
+  inputs:
+    ArtifactName: '_$(Build.DefinitionName)'
+

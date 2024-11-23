@@ -1,0 +1,2 @@
+az account set -s UNMGD.Advisory.MC
+terraform init -backend-config="access_key=$(az storage account keys list --resource-group "co-np-eastus-timterraformfiles-rg" --account-name "conpeustimtrfm01sa"  --query '[0].value' -o tsv)"

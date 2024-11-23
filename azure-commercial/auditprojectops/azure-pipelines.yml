@@ -1,0 +1,24 @@
+
+name: $(Build.DefinitionName)_$(Build.SourceBranchName).$(rev:r)
+
+trigger:
+  branches:
+    include:
+    - dev-projectops
+  paths:
+    include:
+    - azure-commercial/auditprojectops/*
+    - modules/*
+    - azure-commercial/sharedras/*
+    
+pool:
+  name: LinuxBuildDevelopmentPool
+
+steps:
+- template: ${{variables['System.DefaultWorkingDirectory']}}/yaml-templates/Step/standard-infra-build.yml
+  parameters:
+    terraform_project_folder_name: 'auditprojectops'
+    service_connection: 'dev-core'
+    development_variables_file: 'variables_development.tfvars'
+    terraform_command: 'terraform'
+    

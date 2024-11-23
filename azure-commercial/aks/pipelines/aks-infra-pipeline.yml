@@ -1,0 +1,148 @@
+# AKS YAML Infra Pipeline
+# dev hosted agents - linuxbuilddevelopmentpool
+# dev service connection - dev-spoke-application
+
+resources:
+- repo: self
+
+name: $(BuildDefinitionName)_$(SourceBranchName)_$(date:yyyyMMdd)$(rev:.r)
+
+trigger:
+  branches:
+    include:
+    - master
+    - aks-terraform
+  paths:
+    include:
+      - azure-commercial/aks/*
+
+pr:
+- aks-terraform
+
+# Agent Pool Name
+pool:
+  name: 'linuxbuilddevelopmentpool'
+
+# Variables and Variable groups
+variables:
+- group: terraform-vars-dev-spoke-application-57fad7dc
+- group: terraform-vars-dev-spoke-application-57fad7dc-kvl
+- group: dev-spoke-aks-infra-variables
+- template: aks-infra-variables.yml
+
+
+stages:
+- stage: Dev
+  displayName: 'Dev AKS Infra'
+  jobs:
+  - job: Validate
+    displayName: 'AKS Infra'
+    continueOnError: false
+    steps:
+      - checkout: self
+      - script: echo Hello, AKS!
+        displayName: "Hello, AKS"
+      - script: terraform version
+        displayName: "Print Terraform Version"
+      - task: AzureCLI@2
+        displayName: 'Get Subscription Details'
+        inputs:
+          scriptType: bash
+          scriptLocation: inlineScript
+          azureSubscription: $(azureSubscription)
+          inlineScript: |
+            # variables
+            subscriptionName=$(az account show --query name --output tsv)
+            echo Subscription Name is $subscriptionName
+      - task: AzureCLI@2
+        displayName: 'Get Latest Kubernetes Version'
+        inputs:
+          scriptType: bash
+          scriptLocation: inlineScript
+          azureSubscription: $(azureSubscription)
+          inlineScript: |
+            kubernetesVersion=$(az aks get-versions --location $(location) --query "orchestrators[?isPreview==false].orchestratorVersion | sort(@) | [-1]" --output tsv)
+            echo kubernetes Version $kubernetesVersion
+
+      - task: replacetokens@3
+        displayName: "Replace Tokens"
+        inputs:
+          rootDirectory: $(terraform_folder_path)
+          tokenPrefix: "#{"
+          tokenSuffix: "}#"
+          targetFiles: |
+            **/*.tf
+            **/*.tfvars
+          enableTelemetry: true
+          actionOnMissing: 'warn'
+            
+      - task: AzureCLI@2
+        displayName: 'Terraform Init'
+        inputs:
+          scriptType: bash
+          scriptLocation: inlineScript
+          azureSubscription: $(azureSubscription)
+          workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraform_folder_path)'
+          inlineScript: 'terraform init'
+
+      - task: AzureCLI@2
+        displayName: 'Terraform Validate'
+        condition: succeeded()
+        inputs:
+          scriptType: bash
+          scriptLocation: inlineScript
+          azureSubscription: $(azureSubscription)
+          workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraform_folder_path)'
+          inlineScript: 'terraform validate'
+
+      - task: AzureCLI@2
+        displayName: 'Terraform Plan'
+        condition: succeeded()
+        inputs:
+          scriptType: bash
+          scriptLocation: inlineScript
+          azureSubscription: $(azureSubscription)
+          workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraform_folder_path)'
+          inlineScript: 'terraform plan -input=false -var="location=$(location)" -var="client_secret=$(spn-devops-57fad7dc-client-secret)" -var-file="tfvars/$(stage).tfvars" -out "$(System.DefaultWorkingDirectory)/$(terraform_folder_path)/plan_$(stage)_$(Build.BuildNumber).tfplan"'
+
+      - task: AzureCLI@2
+        displayName: 'Terraform Apply'
+        condition: succeeded()
+        inputs:
+          scriptType: bash
+          scriptLocation: inlineScript
+          azureSubscription: $(azureSubscription)
+          workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraform_folder_path)'
+          #inlineScript: 'terraform apply -input=false -var="location=$(location)" -var="client_secret=$(spn-devops-57fad7dc-client-secret)" -var-file="tfvars/$(stage).tfvars"'
+          inlineScript: 'terraform apply -input=false "plan_$(stage)_$(Build.BuildNumber).tfplan"'
+
+
+
+
+  #     - task: TerraformTaskV2@2
+  #       displayName: 'Terraform Validate'
+  #       inputs:
+  #         provider: 'azurerm'
+  #         command: 'validate'
+  #       enabled: false
+
+  # - job: Plan
+  #   displayName: 'Terraform Plan'
+  #   continueOnError: false
+  #   steps:
+  #     - checkout: self
+      
+          
+
+- stage: QA
+  displayName: 'QA'
+  jobs:
+  - job: QA
+    displayName: 'Provision AKS Infra'
+    continueOnError: false
+    steps:
+      - checkout: self
+      - script: echo Hello, AKS!
+        displayName: "Hello, AKS"
+      - script: terraform version
+        displayName: "Print Terraform Version"

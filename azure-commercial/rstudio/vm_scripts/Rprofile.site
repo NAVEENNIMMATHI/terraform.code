@@ -1,0 +1,5 @@
+.First <- function(){
+Sys.setenv(TMPDIR="/opt/tmp-rstudio")
+configure.vars="TMPDIR=/opt/tmp-rstudio"
+cat("\nWelcome to R environment  on ", date(), "\n")
+}

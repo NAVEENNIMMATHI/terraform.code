@@ -1,0 +1,11 @@
+﻿{
+  "bindings": [
+    {
+      "name": "BlobTrigger1",
+      "type": "blobTrigger",
+      "direction": "in",
+      "path": "raw/{name}",
+      "connection": "Data_Lake_Connection"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+module "insightswindowsvm" {
+source                                 = "../../modules12/virtual_machine_universal_win2016"
+vm_region                              = var.vm_region
+project_name                           = var.project_name
+vm_environment                         = var.vm_environment
+vm_workload_desc                       = "ir"
+resource_group_name                    = module.application-rg.resource_group_name
+resource_group_location                = module.application-rg.resource_group_location
+count_value                            = "1"
+subnet_id                              = module.hdinsight.subnet_id
+tags                                   = var.tags
+vm_size                                = var.vm_size
+availability_set_id                    = module.avset.availability_set_id
+azurerm_image_id                       = ""
+admin_password                         = var.admin_password
+data_disk_size                         = "100"
+application_acronym                    = var.application_acronym
+storage_uri                            = module.vmstraccount.primary_blob_endpoint
+loganalytics_workspace_id              = var.loganalytics_workspace_id
+storage_account_name                   = var.storage_account_name
+loganalytics_workspace_key             = var.loganalytics_workspace_key
+storage_account_key                    = var.storage_account_key
+diskencryption_keyvault                = var.diskencryption_keyvault
+template_file                          = data.template_file.ps1.rendered
+template_file_xml                      = data.template_file.xml.rendered
+client_id                              = var.client_id
+}

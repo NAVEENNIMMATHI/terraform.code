@@ -1,0 +1,24 @@
+name: $(Build.DefinitionName)_$(Build.SourceBranchName).$(rev:r)
+
+# specific path build
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - azure-commercial/geospatial/*
+    - modules/*
+    - azure-commercial/sharedras/*
+    
+pool:
+  name: LinuxBuildDevelopmentPool
+
+steps:
+- template: ${{variables['System.DefaultWorkingDirectory']}}/yaml-templates/Step/standard-geospatial-infra-build.yml
+  parameters:
+    terraform_project_folder_name: 'geospatial'
+    service_connection: 'dev-core'
+    development_variables_file: 'variables_development.tfvars'
+    terraform_command: 'terraform'
+    

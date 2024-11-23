@@ -1,0 +1,28 @@
+tenant_id = "188697ab-840f-44ec-8535-aaaa5680bab0"
+subscription_id = "57fad7dc-7eeb-4a2c-b3b7-405d9f8d3cc8"
+client_id = "c79c197f-2835-49dc-846a-06644d7f10c4"
+
+location                     = "eastus"
+environment                  = "dv"
+resource_group_name          = "RGP-USE-AKS-DEFAULT-DV"
+storage_name                 = "stousedefaultdiagdv"
+log_analytics_workspace_name = "law-use-default-dv"
+log_analytics_storage_name	 = "storagelawusedefaultdv"
+acr_name                     = "acrusedefaultdv"
+key_vault_name               = "kvl-use-default-dv"
+aks_cluster_name             = "aks-use-default-dv"
+hub_vnet_name                = "{ChangeMe}"
+aks_vnet_name                = "{ChangeMe}"
+postgresql_login			 = "#{postgresql_login}#"
+postgresql_password			 = "#{postgresql_password}#"
+postgresql_name				 = "pgs-use-default-dv"
+
+tags = {
+	Environment     = "Development"
+	LOB	        	= "Consulting"
+	Node            = "Spoke"
+	Platform        = "Azure Commercial Cloud"
+	Solution        = "Ignite"
+	BusinessContact = "tgunarathne@kpmg.com"
+	BusinessOwner   = "Thilina Gunarathne"
+}

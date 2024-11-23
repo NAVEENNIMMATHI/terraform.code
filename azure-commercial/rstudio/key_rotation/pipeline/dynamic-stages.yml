@@ -1,0 +1,95 @@
+parameters:
+  - name: deployment_environments
+    type: object
+    default: []
+  - name: project_folder_name
+    type: string
+    default: ""
+  - name: subscription_tier
+    type: string
+    default: ""
+  - name: env_mappings
+    type: object
+    default: 
+      dv: 
+        environment: Development
+        agent_pool: DevelopmentPrivatePoolWin2016
+        service_connection: 
+          spoke_application: dev-spoke-application
+          core: dev-core
+          spoke_da: dev-spoke-da
+        variable_groups:
+          var_group: "terraform-vars-dev-spoke-da-3507153c"
+          var_group_kvl: "terraform-vars-dev-spoke-da-3507153c-kvl"
+      qa: 
+        environment: QA
+        agent_pool: QAPrivatePoolWin2016
+        service_connection: 
+          spoke_application: qa-spoke-application
+          core: qa-core
+          spoke_da: qa-spoke-da
+        variable_groups:
+          var_group: "terraform-vars-qa-spoke-application-96e9a7e6"
+          var_group_kvl: "terraform-vars-qa-spoke-application-96e9a7e6-kvl"
+      uat: 
+        environment: UAT
+        agent_pool: UATPrivatePoolWin2016
+        service_connection: 
+          spoke_application: uat-spoke-application
+          core: uat-core
+          spoke_da: uat-spoke-da
+        variable_groups:
+          var_group: "terraform-vars-uat-spoke-application-104a6d25"
+          var_group_kvl: "terraform-vars-uat-spoke-application-104a6d25-kvl"
+      stg: 
+        environment: Staging
+        agent_pool: ProdPrivatePoolWIN2016
+        service_connection: 
+          spoke_application: stg-spoke-application
+          core: stg-core
+          spoke_da: stg-spoke-da
+        variable_groups:
+          var_group: "terraform-vars-stg-spoke-application-0bc2885b"
+          var_group_kvl: "terraform-vars-stg-spoke-application-0bc2885b-kvl"
+      pd: 
+        environment: Production
+        agent_pool: ProdPrivatePoolWIN2016
+        service_connection: 
+          spoke_application: pd-spoke-application
+          core: pd-core
+          spoke_da: pd-spoke-da
+        variable_groups:
+          var_group: "terraform-vars-pd-spoke-application-5d3ae075"
+          var_group_kvl: "terraform-vars-pd-spoke-application-5d3ae075-kvl"
+
+stages:
+- ${{each environment_acronym in parameters.deployment_environments}}:
+  - stage: ${{format('rotate_ssh_keys_{0}',parameters.env_mappings[environment_acronym].environment)}}
+    displayName: ${{format('rotate_ssh_keys-{0}',parameters.env_mappings[environment_acronym].environment)}}
+    dependsOn: []
+    variables:
+    - template: env-scoped-vars-${{environment_acronym}}.yml
+    - group: ${{parameters.env_mappings[environment_acronym].variable_groups.var_group}}
+    - group: ${{parameters.env_mappings[environment_acronym].variable_groups.var_group_kvl}}
+  
+    jobs:
+    - job: 'Validate_${{upper(parameters.environment_acronym)}}'
+      workspace:
+        clean: all
+      displayName: '${{upper(parameters.environment_acronym)}} Rotate Keys'
+      dependsOn: []
+      
+      pool:
+          name: ${{parameters.env_mappings[environment_acronym].agent_pool}}
+
+      steps:
+      - checkout: self
+
+      - task: AzurePowerShell@5
+        inputs:
+          azureSubscription: ${{parameters.env_mappings[environment_acronym].service_connection[parameters.subscription_tier]}}
+          ScriptType: 'FilePath'
+          ScriptPath: ${{parameters.project_folder_name}}/generate-and-deploy-ssh-key-pair.ps1
+          ScriptArguments: '-environment "${{environment_acronym}}" -azureuserPassword "$(vm-admin-password)"'
+          azurePowerShellVersion: 'LatestVersion'
+          pwsh: false

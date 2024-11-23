@@ -1,0 +1,24 @@
+name: $(Build.DefinitionName)_$(Build.SourceBranchName).$(rev:r)
+
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+      - azure-commercial/rstudio/key_rotation/*
+
+parameters:
+  - name: deployment_environments
+    type: object
+    default: ['dv'] # Set default environments to deploy to (by environment acronym) - can override when manually running
+
+variables:
+- template: release-scoped-vars.yml
+
+stages:
+- template: dynamic-stages.yml
+  parameters:
+    deployment_environments: ${{parameters.deployment_environments}}
+    project_folder_name: ${{variables.project_folder_name}}
+    subscription_tier: 'spoke_da'

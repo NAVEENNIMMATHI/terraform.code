@@ -1,0 +1,3 @@
+variables:
+- name: project_folder_name
+  value: azure-commercial/rstudio/key_rotation

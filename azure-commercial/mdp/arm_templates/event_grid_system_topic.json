@@ -1,0 +1,81 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "SystemTopicName": {
+            "defaultValue": "testevent1",
+            "type": "String"
+        },
+        "StorageAccountName": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "ResourceGroupName": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "SubscriptionId": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "FunctionAppName": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "FunctionName": {
+            "defaultValue": "",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.EventGrid/systemTopics",
+            "apiVersion": "2021-12-01",
+            "name": "[parameters('SystemTopicName')]",
+            "location": "eastus",
+            "tags": {
+                "Environment": "Development",
+                "LOB": "Consulting",
+                "Node": "Spoke",
+                "Platform": "Azure Commercial Cloud",
+                "Solution": "Modern Data Platform (MDP)"
+            },
+            "properties": {
+                "source": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', parameters('ResourceGroupName'),'/providers/Microsoft.Storage/StorageAccounts/', parameters('StorageAccountName'))]",
+                "topicType": "Microsoft.Storage.StorageAccounts"
+            }
+        },
+        {
+            "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
+            "apiVersion": "2021-12-01",
+            "name": "[concat(parameters('SystemTopicName'), '/', parameters('FunctionName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.EventGrid/systemTopics', parameters('SystemTopicName'))]"
+            ],
+            "properties": {
+                "destination": {
+                    "properties": {
+                        "resourceId": "[concat('/subscriptions/', parameters('SubscriptionId'), '/resourceGroups/', parameters('ResourceGroupName'),'/providers/Microsoft.Web/sites/', parameters('FunctionAppName'), '/functions/', parameters('FunctionName'))]",
+                        "maxEventsPerBatch": 1,
+                        "preferredBatchSizeInKilobytes": 64
+                    },
+                    "endpointType": "AzureFunction"
+                },
+                "filter": {
+                    "includedEventTypes": [
+                        "Microsoft.Storage.BlobCreated",
+                        "Microsoft.Storage.BlobDeleted"
+                    ],
+                    "enableAdvancedFilteringOnArrays": true
+                },
+                "labels": [],
+                "eventDeliverySchema": "EventGridSchema",
+                "retryPolicy": {
+                    "maxDeliveryAttempts": 30,
+                    "eventTimeToLiveInMinutes": 1440
+                }
+            }
+        }
+    ]
+}

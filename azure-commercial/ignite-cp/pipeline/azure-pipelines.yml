@@ -1,0 +1,41 @@
+name: $(Build.DefinitionName)_$(Build.SourceBranchName).$(rev:r)
+
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+      - azure-commercial/ignite-cp/*
+
+parameters:
+  - name: deployment_environments
+    type: object
+    default: ['dv', 'qa', 'uat', 'stg', 'pd'] # Set default environments to deploy to (by environment acronym) - can override when manually running
+
+variables:
+- template: release-scoped-vars.yml
+
+# Create a stage to create the initial artifact that gets downloaded by all other stages
+stages:
+- template: ${{variables['System.DefaultWorkingDirectory']}}/azure-commercial/ignite-cp/Stage/dynamic-tf-stages.yml
+  parameters:
+    stage_type: 'createProjectArtifact'
+    
+# Create a number of Terraform Plan stages for each deployment environment by calling the shared stage template
+# Pass the deployment_environments and this project's name to build the stages using this project's specific yaml templates
+- template: ${{variables['System.DefaultWorkingDirectory']}}/yaml-templates/Stage/dynamic-tf-stages.yml
+  parameters:
+    deployment_environments: ${{parameters.deployment_environments}}
+    terraform_project_folder_name: ${{variables.terraform_project_folder_name}}
+    subscription_tier: 'spoke_application'
+    stage_type: 'plan'
+
+# Then, create a number of Terraform Apply stages for each deployment environment by calling the shared stage template
+# Pass the deployment_environments and this project's name to build the stages using this project's yaml specific templates
+- template: ${{variables['System.DefaultWorkingDirectory']}}/yaml-templates/Stage/dynamic-tf-stages.yml
+  parameters:
+    deployment_environments: ${{parameters.deployment_environments}}
+    terraform_project_folder_name: ${{variables.terraform_project_folder_name}}
+    subscription_tier: 'spoke_application'
+    stage_type: 'apply'

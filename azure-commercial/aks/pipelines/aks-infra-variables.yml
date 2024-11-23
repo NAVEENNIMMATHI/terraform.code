@@ -1,0 +1,17 @@
+
+variables:
+- name: ProjectName
+  value: iac-acc-aks-default
+
+- name: azureSubscription
+  value: dev-spoke-application
+
+- name: location
+  value: eastus
+
+- name: terraformVersion
+  value: 1.1.5
+
+- name: terraform_folder_path
+  value: azure-commercial/aks/infra
+

@@ -1,0 +1,25 @@
+steps:
+- task: CopyFiles@2
+  displayName: 'Copy Terraform files'
+  inputs:
+    SourceFolder: $(terraform_project_folder_name)
+    Contents: '**'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/$(terraform_project_folder_name)'
+
+- task: CopyFiles@2
+  displayName: 'Copy Terraform modules folder'
+  inputs:
+    SourceFolder: modules
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/modules'
+
+- task: CopyFiles@2
+  displayName: 'Copy Powershell folder'
+  inputs:
+    SourceFolder: powershell
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/powershell'
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: '$(Build.ArtifactStagingDirectory)'
+    artifact: '_$(Build.DefinitionName)'
+    publishLocation: 'pipeline'

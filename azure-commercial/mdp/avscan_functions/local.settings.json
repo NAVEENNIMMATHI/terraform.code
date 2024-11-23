@@ -1,0 +1,21 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "WEBSITE_SLOT_NAME": "Production",
+    "FUNCTIONS_EXTENSION_VERSION": "~4",
+    "ScmType": "None",
+    "AzureWebJobs.BlobTrigger2.Disabled": "1",
+    "AzureWebJobs.EventGridTrigger1.Disabled": "0",
+    "WEBSITE_AUTH_ENABLED": "False",
+    "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=cce4b742-86ae-4011-93d1-c93ceef22ab0;IngestionEndpoint=https://eastus-8.in.applicationinsights.azure.com/",
+    "APPINSIGHTS_INSTRUMENTATIONKEY": "cce4b742-86ae-4011-93d1-c93ceef22ab0",
+    "WEBSITE_NODE_DEFAULT_VERSION": "14.18.1",
+    "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "DefaultEndpointsProtocol=https;AccountName=storageaccountrgpus88d8;AccountKey=0PiCqLjpNemSoilpjz8B6FnXoG+e6Dh0PGJRQJiufh18DqiXopBwfXJ2mSPe67xZ4BNK16kkl4LmPF+mlIKNYA==;EndpointSuffix=core.windows.net",
+    "WEBSITE_CONTENTSHARE": "fun-clamav-mdp-devb852",
+    "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=storageaccountrgpus88d8;AccountKey=0PiCqLjpNemSoilpjz8B6FnXoG+e6Dh0PGJRQJiufh18DqiXopBwfXJ2mSPe67xZ4BNK16kkl4LmPF+mlIKNYA==;EndpointSuffix=core.windows.net",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "WEBSITE_SITE_NAME": "fun-clamav-mdp-dev",
+    "AzureWebJobs.BlobTrigger1.Disabled": "0",
+    "dlsusemdpmdpdv_STORAGE": "DefaultEndpointsProtocol=https;AccountName=dlsusemdpmdpdv;AccountKey=ebzn9WPq1B3d+GVKVVBuLOdSoCQOiU/1glveYBBBx04SomU3zFaT+yeHwZT6WNJBa3Xa10C2dif3tPcUGw7Q4Q=="
+  }
+}

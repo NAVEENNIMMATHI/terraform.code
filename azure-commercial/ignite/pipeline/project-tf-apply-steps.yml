@@ -1,0 +1,48 @@
+parameters:
+- name: environment_acronym
+  type: string
+  default: ''
+- name: service_connection
+  type: string
+  default: ''
+
+steps:
+- template: ${{variables['System.DefaultWorkingDirectory']}}/yaml-templates/Step/download-certs.yml
+  parameters:
+    Cert_Name_in_Keyvault: $(Cert_Name_in_Keyvault_jup)
+    Save_Cert_as: $(Save_Cert_as_jup)
+    environment_acronym: ${{parameters.environment_acronym}}
+    service_connection: ${{parameters.service_connection}}
+
+- template: ${{variables['System.DefaultWorkingDirectory']}}/yaml-templates/Step/download-certs.yml
+  parameters:
+    Cert_Name_in_Keyvault: $(Cert_Name_in_Keyvault_api)
+    Save_Cert_as: $(Save_Cert_as_api)
+    environment_acronym: ${{parameters.environment_acronym}}
+    service_connection: ${{parameters.service_connection}}
+
+- template: ${{variables['System.DefaultWorkingDirectory']}}/yaml-templates/Step/download-certs.yml
+  parameters:
+    Cert_Name_in_Keyvault: $(Cert_Name_in_Keyvault_mio)
+    Save_Cert_as: $(Save_Cert_as_mio)
+    environment_acronym: ${{parameters.environment_acronym}}
+    service_connection: ${{parameters.service_connection}}
+
+- template: ${{variables['System.DefaultWorkingDirectory']}}/yaml-templates/Step/download-certs.yml
+  parameters:
+    Cert_Name_in_Keyvault: $(Cert_Name_in_Keyvault_ui)
+    Save_Cert_as: $(Save_Cert_as_ui)
+    environment_acronym: ${{parameters.environment_acronym}}
+    service_connection: ${{parameters.service_connection}}
+
+- template: ${{variables['System.DefaultWorkingDirectory']}}/yaml-templates/Step/download-certs.yml
+  parameters:
+    Cert_Name_in_Keyvault: $(Cert_Name_in_Keyvault_ui_api)
+    Save_Cert_as: $(Save_Cert_as_ui_api)
+    environment_acronym: ${{parameters.environment_acronym}}
+    service_connection: ${{parameters.service_connection}}
+
+- template: ${{variables['System.DefaultWorkingDirectory']}}/yaml-templates/Step/tf-apply.yml
+  parameters:
+    environment_acronym: ${{parameters.environment_acronym}}
+    service_connection: ${{parameters.service_connection}}

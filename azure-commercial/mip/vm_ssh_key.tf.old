@@ -1,0 +1,10 @@
+resource "tls_private_key" "ssh_key" {
+  algorithm = "RSA"
+  rsa_bits = 4096
+}
+
+resource "azurerm_key_vault_secret" "ssh_key_private" {
+  name         = "ssh-key-private-key-pem"
+  value        = tls_private_key.ssh_key.private_key_pem
+  key_vault_id = azurerm_key_vault.mipkv.id
+}

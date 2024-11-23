@@ -1,0 +1,54 @@
+parameters:
+- name: environment_acronym
+  type: string
+  default: ''
+- name: service_connection
+  type: string
+  default: ''
+
+steps:
+- task: DownloadPipelineArtifact@2
+  inputs:
+    buildType: 'current'
+    artifactName: '_$(Build.DefinitionName)'
+    targetPath: '$(System.DefaultWorkingDirectory)'
+
+- task: qetza.replacetokens.replacetokens-task.replacetokens@3
+  inputs:
+    rootDirectory: '$(System.DefaultWorkingDirectory)/$(terraform_project_folder_name)'
+    targetFiles: |
+      **/*.tf
+      **/*.tfvars
+    encoding: 'auto'
+    writeBOM: true
+    actionOnMissing: 'warn'
+    keepToken: false
+    tokenPrefix: '__'
+    tokenSuffix: '__'
+    useLegacyPattern: false
+    enableTelemetry: true
+
+- task: AzureCLI@1
+  displayName: 'Terraform Init'
+  inputs:
+    scriptLocation: inlineScript
+    workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraform_project_folder_name)'
+    inlineScript: 'terraform init'
+    azureSubscription: ${{parameters.service_connection}}
+
+- task: AzureCLI@1
+  displayName: 'Download Terraform Plan to Agent'
+  inputs:
+    azureSubscription: ${{parameters.service_connection}}
+    scriptLocation: inlineScript
+    inlineScript: 'az storage blob download --account-name $(TerraformStateStorageAccount) --account-key $(TerraformStateStorageAccountKey) --container-name terraformplancontainer --name plan_${{parameters.environment_acronym}}_$(Build.BuildNumber).tfplan --file .\plan_${{parameters.environment_acronym}}_$(Build.BuildNumber).tfplan --auth-mode key'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraform_project_folder_name)'
+
+- task: AzureCLI@1
+  displayName: 'Terraform apply'
+  condition: succeeded()
+  inputs:
+    scriptLocation: inlineScript
+    workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraform_project_folder_name)'
+    inlineScript: 'terraform apply -input=false "plan_${{parameters.environment_acronym}}_$(Build.BuildNumber).tfplan"'
+    azureSubscription: ${{parameters.service_connection}} 

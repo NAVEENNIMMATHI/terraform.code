@@ -1,0 +1,121 @@
+name: $(Build.DefinitionName)_$(Build.SourceBranchName).$(rev:r)
+
+variables:
+  terraform_project_folder_name: 'subscription-onboarding'
+
+parameters:
+  - name: pool
+    displayName: Agent Pool
+    type: string
+    values:
+      - DevelopmentPrivatePoolWin2016
+      - ProdPrivatePoolWIN2016
+  - name: subscription_id
+    displayName: Subscription ID
+    type: string
+    default: 00000000-0000-0000-0000-000000000000
+  - name: subscription_id_first_chars
+    displayName: First 8 Characters of Subscription ID
+    type: string
+    default: 00000000
+  - name: service_connection_name
+    displayName: Service Connection Name
+    type: string
+    default: service-connection-name
+  - name: platform
+    displayName: Platform Tag
+    type: string
+    default: Azure Commercial Cloud
+    values:
+    - Azure Commercial Cloud
+    - KPMG Trusted Cloud
+    - Azure Government Cloud
+  - name: environment
+    displayName: Environment Tag
+    type: string
+    default: Sandbox
+    values:
+    - Sandbox
+    - Development
+    - QA
+    - UAT
+    - Staging
+    - Production
+  - name: node
+    displayName: Node Tag
+    type: string
+    default: Spoke
+    values:
+    - Spoke
+    - Hub
+    - Transit
+  - name: solution
+    displayName: Solution Tag
+    type: string
+    default: Solution Name
+  - name: service_group
+    displayName: Service Group Tag
+    type: string
+    default: Advisory Other
+    values:
+    - Advisory Other
+    - Consulting
+    - Deal Advisory & Strategy
+    - Risk Advisory Solutions
+    - Spectrum
+
+stages:
+  - stage: 'TerraformPlan'
+    jobs:
+    - job: 'TerraformPlan'
+      pool:
+        name: ${{parameters.pool}}
+      variables:
+        subscription_id: ${{parameters.subscription_id}}
+        subscription_id_first_chars: ${{parameters.subscription_id_first_chars}}
+      steps:
+      - task: AzureCLI@2
+        displayName: 'TerraformInit'
+        inputs:
+          azureSubscription: ${{parameters.service_connection_name}}
+          scriptType: ps
+          addSpnToEnvironment: true
+          workingDirectory: '$(System.DefaultWorkingDirectory)/azure-commercial/$(terraform_project_folder_name)'
+          scriptLocation: inlineScript
+          inlineScript: |
+            terraform12 init
+            
+      - task: AzureCLI@2
+        displayName: 'TerraformPlan'
+        inputs:
+          azureSubscription: ${{parameters.service_connection_name}}
+          scriptType: ps
+          addSpnToEnvironment: true
+          workingDirectory: '$(System.DefaultWorkingDirectory)/azure-commercial/$(terraform_project_folder_name)'
+          scriptLocation: inlineScript
+          inlineScript: |
+            terraform12 plan -var-file="variables.tfvars" -var="client_secret=$env:servicePrincipalKey" -var="client_id=$env:servicePrincipalId" -var="subscription_id=${{parameters.subscription_id}}" -var="tenant_id=$env:tenantId" -var="subscription_id_first_chars=${{parameters.subscription_id_first_chars}}" -var="platform=${{parameters.platform}}" -var="environment=${{parameters.environment}}" -var="node=${{parameters.node}}" -var="solution=${{parameters.solution}}" -var="service_group=${{parameters.service_group}}" -out current.tfplan
+
+
+
+  - stage: 'TerraformApply'
+    jobs:
+    - deployment: 'TerraformApply'
+      environment: ${{parameters.environment}}
+      pool:
+        name: ${{parameters.pool}}
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+  
+              - task: AzureCLI@2
+                displayName: 'TerraformApply'
+                inputs:
+                  azureSubscription: ${{parameters.service_connection_name}}
+                  scriptType: ps
+                  addSpnToEnvironment: true
+                  workingDirectory: '$(System.DefaultWorkingDirectory)/azure-commercial/$(terraform_project_folder_name)'
+                  scriptLocation: inlineScript
+                  inlineScript: |
+                    terraform12 apply current.tfplan

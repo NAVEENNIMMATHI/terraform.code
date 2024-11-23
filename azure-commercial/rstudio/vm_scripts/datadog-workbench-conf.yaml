@@ -1,0 +1,5 @@
+init_config:
+instances:
+  - name: rstudio
+    search_string: [rstudio]
+    exact_match: false

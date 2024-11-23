@@ -1,0 +1,7 @@
+variables:
+- name: Keyvault_Name 
+  value: kvl-use-spokeapp-stg
+- name: Stage
+  value: stg
+- name: Variables_passed_to_plan
+  value: -var="ignite_postgresql_adminpassword=$(ignite-postgresql-adminpassword)" -var="client_secret=$(spn-devops-0bc2885b)" -var-file="variables_scaling_stg.tfvars"

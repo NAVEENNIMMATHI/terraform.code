@@ -1,0 +1,24 @@
+parameters:
+- name: terraform_project_folder_name
+  type: string
+  default: ''
+- name: environment_acronym
+  type: string
+  default: ''
+- name: service_connection
+  type: string
+  default: ''
+
+jobs:
+- job: 'Validate_${{upper(parameters.environment_acronym)}}'
+  workspace:
+    clean: all
+  displayName: '${{upper(parameters.environment_acronym)}} Build and Plan'
+  dependsOn: []
+
+  steps:
+  - checkout: none
+  - template: ${{variables['System.DefaultWorkingDirectory']}}/${{parameters.terraform_project_folder_name}}/coupa/project-tf-coupa-plan-steps.yml
+    parameters:
+      environment_acronym: ${{parameters.environment_acronym}}
+      service_connection: ${{parameters.service_connection}}

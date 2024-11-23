@@ -1,0 +1,108 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+name: $(Build.DefinitionName)_$(Build.SourceBranchName).$(rev:r)
+
+# specific path build
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - azure-commercial/ofr/*
+    - modules12/*
+
+variables:
+- group: 'OFR Dev Variables'
+- group: terraform-vars-dev-core-c72acede-kvl
+    
+stages:
+# Publish the code artifacts from the master branch.
+- template: ${{variables['System.DefaultWorkingDirectory']}}/deployment-templates/stages/build-artifacts.yml
+  parameters:
+    agent_pool: LinuxBuildDevelopmentPool
+    artifacts: ['azure-commercial/ofr']
+    service_connection: dev-core
+    terraform_files_folder_path: 'azure-commercial/ofr'
+    terraform_variables_file: variables_development.tfvars
+
+# Perform Terraform plan activities for Development.
+- template: ${{variables['System.DefaultWorkingDirectory']}}/deployment-templates/stages/terraform-plan.yml
+  parameters:
+    agent_pool: DevelopmentPrivatePoolWin2016
+    service_connection: dev-core
+    deployment_environment: Development
+    terraform_files_folder_path: 'azure-commercial/ofr'
+    terraform_storage_account_resource_group: RGP-USE-CORE-DEV
+    terraform_storage_account: stousecorec72acede
+    terraform_key_vault: kvl-use-core-c72acede
+    terraform_key_vault_secret: spn-devops-c72acede-client-secret
+    terraform_state_container: terraformstatecontainer
+    terraform_state_file: iac-acc-ofr.dv.tfstate
+    terraform_plan_container: terraformplancontainer
+    terraform_variables_file: variables_development.tfvars
+    pfx_certificates: {'ofrdev-kpmgcloudops-com-pfx': 'ofrdev.kpmgcloudops.com.pfx'}
+    cer_certificates: {'kpmgcloudops-com': 'ofrdev.kpmgcloudops.com.cer'}
+    library_variable_groups: [terraform-vars-dev-core-c72acede-kvl]
+    terraform_plan_arguments: '-var="sql_server_admin_password=$(sql-server-admin-password)" -var="ato_ofr_spn_client_secret=$(ato_ofr_spn_client_secret)" -var="vm_admin_password=$(vm-admin-password)"'
+
+# Perform Terraform apply activities for Development.
+- template: ${{variables['System.DefaultWorkingDirectory']}}/deployment-templates/stages/terraform-apply.yml
+  parameters:
+    agent_pool: DevelopmentPrivatePoolWin2016
+    service_connection: dev-core
+    deployment_environment: Development
+    terraform_files_folder_path: 'azure-commercial/ofr'
+    terraform_storage_account_resource_group: RGP-USE-CORE-DEV
+    terraform_storage_account: stousecorec72acede
+    terraform_key_vault: kvl-use-core-c72acede
+    terraform_key_vault_secret: spn-devops-c72acede-client-secret
+    terraform_plan_container: terraformplancontainer
+    terraform_state_container: terraformstatecontainer
+    terraform_state_file: iac-acc-ofr.dv.tfstate
+    approvers: CommercialCloud-DeploymentApprovers
+    # approval_timeout_minutes: 1440
+    # approval_timeout_action: 'reject'
+    # terraform_apply_arguments: ''
+
+# Perform Terraform plan activities for Production.
+- template: ${{variables['System.DefaultWorkingDirectory']}}/deployment-templates/stages/terraform-plan.yml
+  parameters:
+    agent_pool: ProdPrivatePoolWin2016
+    service_connection: pd-core
+    deployment_environment: Production
+    terraform_files_folder_path: 'azure-commercial/ofr'
+    terraform_storage_account_resource_group: co-p-eastus-terraformfiles-rg
+    terraform_storage_account: copeuscoretrfm01sa
+    terraform_key_vault: kvl-use-coredevops-p
+    terraform_key_vault_secret: spn-devops-4c9dc048-client-secret
+    terraform_state_container: terraformstatecontainer
+    terraform_state_file: iac-acc-ofr.pd.tfstate
+    terraform_plan_container: terraformplancontainer
+    terraform_variables_file: variables_production.tfvars
+    pfx_certificates: {'ofr-kpmgcloudops-com-pfx': 'ofr.kpmgcloudops.com.pfx'}
+    cer_certificates: {'kpmgcloudops-com': 'ofr.kpmgcloudops.com.cer'}
+    library_variable_groups: [terraform-vars-pd-core-4c9dc048-kvl]
+    terraform_plan_arguments: '-var="sql_server_admin_password=$(sql-server-admin-password)" -var="ato_ofr_spn_client_secret=$(ato_ofr_spn_client_secret)" -var="vm_admin_password=$(vm-admin-password)"'
+
+# Perform Terraform apply activities for Production.
+- template: ${{variables['System.DefaultWorkingDirectory']}}/deployment-templates/stages/terraform-apply.yml
+  parameters:
+    agent_pool: ProdPrivatePoolWin2016
+    service_connection: pd-core
+    deployment_environment: Production
+    terraform_files_folder_path: 'azure-commercial/ofr'
+    terraform_storage_account_resource_group: co-p-eastus-terraformfiles-rg
+    terraform_storage_account: copeuscoretrfm01sa
+    terraform_key_vault: kvl-use-coredevops-p
+    terraform_key_vault_secret: spn-devops-4c9dc048-client-secret
+    terraform_plan_container: terraformplancontainer
+    terraform_state_container: terraformstatecontainer
+    terraform_state_file: iac-acc-ofr.pd.tfstate
+    approvers: CommercialCloud-DeploymentApprovers
+    # approval_timeout_minutes: 1440
+    # approval_timeout_action: 'reject'
+    # terraform_apply_arguments: ''

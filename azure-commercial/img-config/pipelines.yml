@@ -1,0 +1,38 @@
+trigger:
+- master
+
+pool:
+  name: LinuxBuildDevelopmentPool
+
+steps:
+
+- task: petergroenewegen.PeterGroenewegen-Xpirit-Vsts-Release-Terraform.Xpirit-Vsts-Release-Terraform.Terraform@2
+  displayName: 'Terraform init'
+  inputs:
+    TemplatePath: azure-commercial/img-config
+    Arguments: init -backend=false
+
+- task: CopyFiles@2
+  displayName: 'Copy shared module configurations'
+  inputs:
+    SourceFolder: modules
+    Contents: |
+     **
+     !**.terraform\**
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/modules'
+  condition: succeeded()
+
+- task: CopyFiles@2
+  displayName: 'Copy img-config configurations'
+  inputs:
+    SourceFolder: azure-commercial/img-config
+    Contents: '*'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/azure-commercial/img-config'
+  condition: succeeded()
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish artifacts'
+  inputs:
+    ArtifactName: '_$(Build.DefinitionName)'
+  condition: succeeded()
+

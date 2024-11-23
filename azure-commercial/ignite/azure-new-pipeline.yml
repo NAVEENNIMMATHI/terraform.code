@@ -1,0 +1,21 @@
+name: $(Build.DefinitionName)_$(Build.SourceBranchName).$(rev:r)
+
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+      - azure-commercial/ignite/*
+
+pool:
+  name: DevelopmentPrivatePoolWin2016
+
+variables:
+  terraform_project_folder_name: 'azure-commercial/ignite'
+
+
+steps:
+- template: ${{variables['System.DefaultWorkingDirectory']}}/yaml-templates/Step/publish-artifact.yml
+  
+    

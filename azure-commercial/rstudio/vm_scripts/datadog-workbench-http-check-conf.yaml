@@ -1,0 +1,10 @@
+init_config:
+
+instances:
+  - name: R_Workbench
+    url: https://rpro.fulcrumdev.kpmgcloudops.com
+  - name: R_Workbench_Auth
+    url: https://rpro.fulcrumdev.kpmgcloudops.com/auth-sign-in?appUri=%2F
+    username: azuser-svcrstuadmind@kconp.local
+    password: notapasswordforsure
+    method: POST

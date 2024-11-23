@@ -1,0 +1,12 @@
+init_config:
+
+instances:
+  - name: R_Connect
+    url: https://rconnect.fulcrumdev.kpmgcloudops.com/connect
+
+  - name: R_Connect_Auth
+    url: https://rconnect.fulcrumdev.kpmgcloudops.com/connect/#/login
+    username: azuser-svcrstuadmind@kconp.local
+    password: notapasswordforsure
+    timeout: 1
+    method: POST

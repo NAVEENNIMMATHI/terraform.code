@@ -1,0 +1,47 @@
+variables:
+- group: terraform-vars-common-old
+
+- name: terraform_project_folder_name
+  value: azure-commercial/ignite
+
+- name: Project
+  value: iac-ignite-yml
+
+- name: TerraformStateResourceGroup # NOTE: This isn't used by the YML pipeline, It's probably used in the .tf config
+  value: RGP-USE-COMMON
+
+- name: TerraformStateStorageAccount # NOTE: This isn't used by the YML pipeline, It's probably used in the .tf config
+  value: $(terraform_state_storage_account)
+
+- name: TerraformStateStorageAccountKey
+  value: $(terraform-state-storage-account-key)
+
+- name: Cert_Name_in_Keyvault_jup
+  value: ignitejup-kpmgcloudops-com
+- name: Save_Cert_as_jup
+  value: ignitejup.kpmgcloudops.com.pfx
+
+- name: Cert_Name_in_Keyvault_api
+  value: igniteapi-kpmgcloudops-com
+- name: Save_Cert_as_api
+  value: igniteapi.kpmgcloudops.com.pfx
+
+- name: Cert_Name_in_Keyvault_mio
+  value: ignitemio-kpmgcloudops-com
+- name: Save_Cert_as_mio
+  value: ignitemio.kpmgcloudops.com.pfx
+
+- name: Cert_Name_in_Keyvault_ui
+  value: igniteui-kpmgcloudops-com
+- name: Save_Cert_as_ui
+  value: igniteui.kpmgcloudops.com.pfx
+
+- name: Cert_Name_in_Keyvault_ui_api
+  value: igniteuiapi-kpmgcloudops-com
+- name: Save_Cert_as_ui_api
+  value: igniteuiapi.kpmgcloudops.com.pfx
+
+- name: Cert_Name_in_Keyvault_ingress
+  value: ignite-self-signed-ingress-cert
+- name: Save_Cert_as_ingress
+  value: ignite-self-signed-ingress-cert.cer

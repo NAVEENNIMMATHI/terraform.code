@@ -1,0 +1,9 @@
+jobs:
+- job: 'createProjectArtifact'
+  workspace:
+    clean: all
+  displayName: 'Create Project Artifact'
+  dependsOn: []
+
+  steps:
+  - template: ${{variables['System.DefaultWorkingDirectory']}}/azure-commercial/ignite-cp/Step/publish-artifact.yml

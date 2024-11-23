@@ -1,0 +1,54 @@
+parameters:
+- name: environment_acronym
+  type: string
+  default: ''
+- name: service_connection
+  type: string
+  default: ''
+
+steps:
+- task: DownloadPipelineArtifact@2
+  inputs:
+    buildType: 'current'
+    artifactName: '_$(Build.DefinitionName)'
+    targetPath: '$(System.DefaultWorkingDirectory)'
+
+- task: qetza.replacetokens.replacetokens-task.replacetokens@3
+  inputs:
+    rootDirectory: '$(System.DefaultWorkingDirectory)/$(terraform_project_folder_name)'
+    targetFiles: |
+      **/*.tf
+      **/*.tfvars
+    encoding: 'auto'
+    writeBOM: true
+    actionOnMissing: 'warn'
+    keepToken: false
+    tokenPrefix: '__'
+    tokenSuffix: '__'
+    useLegacyPattern: false
+    enableTelemetry: true
+
+- task: AzureCLI@1
+  displayName: 'Terraform Init'
+  inputs:
+    scriptLocation: inlineScript
+    workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraform_project_folder_name)'
+    inlineScript: 'terraform12 init'
+    azureSubscription: ${{parameters.service_connection}}
+
+- task: AzureCLI@1
+  displayName: 'Terraform plan'
+  inputs:
+    scriptLocation: inlineScript
+    workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraform_project_folder_name)'
+    inlineScript: 'terraform12 plan -input=false -var-file="variables_coupa_${{parameters.environment_acronym}}.tfvars" $(Variables_passed_to_plan) -out "$(System.DefaultWorkingDirectory)/$(terraform_project_folder_name)/plan_${{parameters.environment_acronym}}_$(Build.BuildNumber).tfplan"'
+    azureSubscription: ${{parameters.service_connection}}
+
+- task: AzureFileCopy@3
+  displayName: 'Terraform Plan Copy to Storage Account'
+  inputs:
+    SourcePath: '$(System.DefaultWorkingDirectory)/$(terraform_project_folder_name)/plan_${{parameters.environment_acronym}}_$(Build.BuildNumber).tfplan'
+    azureSubscription: ${{parameters.service_connection}}
+    Destination: AzureBlob
+    storage: '$(TerraformStateStorageAccount)'
+    ContainerName: terraformplancontainer
